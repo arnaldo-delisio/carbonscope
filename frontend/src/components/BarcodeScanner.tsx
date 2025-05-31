@@ -5,8 +5,11 @@ interface CarbonEstimate {
   production_co2_kg: number;
   transport_co2_kg: number;
   packaging_co2_kg: number;
+  usage_co2_kg?: number;
   confidence_score: number;
+  impact_level: string;
   methodology: string;
+  factors_applied?: any;
 }
 
 interface ProductAnalysis {
@@ -67,10 +70,11 @@ const BarcodeScanner: React.FC = () => {
     }
   };
 
-  const getCarbonLevel = (co2Kg: number): { level: string; color: string } => {
-    if (co2Kg < 1) return { level: 'Low', color: 'text-green-600' };
-    if (co2Kg < 5) return { level: 'Medium', color: 'text-yellow-600' };
-    return { level: 'High', color: 'text-red-600' };
+  const getCarbonLevel = (co2Kg: number): { level: string; color: string; emoji: string } => {
+    if (co2Kg < 1) return { level: 'Low', color: 'text-green-600', emoji: '🟢' };
+    if (co2Kg < 5) return { level: 'Medium', color: 'text-yellow-600', emoji: '🟡' };
+    if (co2Kg < 15) return { level: 'High', color: 'text-orange-600', emoji: '🟠' };
+    return { level: 'Very High', color: 'text-red-600', emoji: '🔴' };
   };
 
   return (
@@ -101,7 +105,7 @@ const BarcodeScanner: React.FC = () => {
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-1">
-          Try: 1234567890123 (Coca-Cola) or 7890123456789 (iPhone)
+          Try: 1234567890123 (Coca-Cola), 7890123456789 (iPhone), 5432109876543 (Bananas)
         </p>
       </div>
 
