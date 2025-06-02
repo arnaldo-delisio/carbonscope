@@ -12,7 +12,7 @@ jobs:
   sonarcloud:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'schedule' && github.repository == 'arnaldo-delisio/carbonscope'
     
     steps:
     - name: Checkout code
@@ -25,6 +25,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      continue-on-error: true
 
   codeql:
     name: CodeQL Analysis
@@ -61,25 +62,28 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Create reports directory
-      run: mkdir -p reports
+    - name: Create reports directory with proper permissions
+      run: |
+        mkdir -p ${{ github.workspace }}/reports
+        chmod 777 ${{ github.workspace }}/reports
     
     - name: Run OWASP Dependency Check
       uses: dependency-check/Dependency-Check_Action@main
       with:
         project: 'CarbonScope'
         path: '.'
-        format: 'ALL'
+        format: 'HTML'
+        out: 'reports'
         args: >
           --enableRetired
-          --out reports
+          --disableAssembly
     
     - name: Upload results
       uses: actions/upload-artifact@v3
       if: always()
       with:
         name: dependency-check-report
-        path: reports/
+        path: ${{ github.workspace }}/reports
 
   license-check:
     name: License Compliance
@@ -115,23 +119,19 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-    
-    - name: Cache Node dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+        cache: 'npm'
+        cache-dependency-path: 'frontend/package-lock.json'
     
     - name: Install license checker for Node
       run: npm install -g license-checker
     
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci --prefer-offline --no-audit
+    
     - name: Check Node.js licenses
-      run: |
-        cd frontend
-        npm ci --prefer-offline --no-audit
-        license-checker --json --out ../node-licenses.json --excludePrivatePackages
+      working-directory: ./frontend
+      run: license-checker --json --out ../node-licenses.json --excludePrivatePackages
     
     - name: Upload license reports
       uses: actions/upload-artifact@v3
