@@ -57,15 +57,12 @@ jobs:
   dependency-check:
     name: OWASP Dependency Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Create reports directory with proper permissions
-      run: |
-        mkdir -p ${{ github.workspace }}/reports
-        chmod 777 ${{ github.workspace }}/reports
     
     - name: Run OWASP Dependency Check
       uses: dependency-check/Dependency-Check_Action@main
@@ -77,17 +74,21 @@ jobs:
         args: >
           --enableRetired
           --disableAssembly
+          --failOnCVSS 7
     
     - name: Upload results
       uses: actions/upload-artifact@v3
       if: always()
       with:
         name: dependency-check-report
-        path: ${{ github.workspace }}/reports
+        path: reports/
 
   license-check:
     name: License Compliance
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     
     steps:
     - name: Checkout code
@@ -108,10 +109,11 @@ jobs:
     
     - name: Install license checker
       run: pip install pip-licenses
+      working-directory: ${{ github.workspace }}
     
     - name: Check Python licenses
+      working-directory: ${{ github.workspace }}/backend
       run: |
-        cd backend
         pip install -r requirements.txt
         pip-licenses --format=json --output-file=../python-licenses.json
     
@@ -120,17 +122,16 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: 'frontend/package-lock.json'
+        cache-dependency-path: '**/package-lock.json'
     
     - name: Install license checker for Node
       run: npm install -g license-checker
+      working-directory: ${{ github.workspace }}
     
     - name: Install frontend dependencies
-      working-directory: ./frontend
       run: npm ci --prefer-offline --no-audit
     
     - name: Check Node.js licenses
-      working-directory: ./frontend
       run: license-checker --json --out ../node-licenses.json --excludePrivatePackages
     
     - name: Upload license reports
@@ -141,3 +142,4 @@ jobs:
         path: |
           python-licenses.json
           node-licenses.json
+      working-directory: ${{ github.workspace }}
