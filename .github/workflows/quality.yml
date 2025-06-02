@@ -61,15 +61,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
+    - name: Create reports directory
+      run: mkdir -p reports
+    
     - name: Run OWASP Dependency Check
       uses: dependency-check/Dependency-Check_Action@main
       with:
         project: 'CarbonScope'
         path: '.'
         format: 'ALL'
+        args: >
+          --enableRetired
+          --out reports
     
     - name: Upload results
       uses: actions/upload-artifact@v3
+      if: always()
       with:
         name: dependency-check-report
         path: reports/
@@ -87,6 +94,14 @@ jobs:
       with:
         python-version: '3.11'
     
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
     - name: Install license checker
       run: pip install pip-licenses
     
@@ -101,17 +116,26 @@ jobs:
       with:
         node-version: '18'
     
+    - name: Cache Node dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    
     - name: Install license checker for Node
       run: npm install -g license-checker
     
     - name: Check Node.js licenses
       run: |
         cd frontend
-        npm ci
-        license-checker --json --out ../node-licenses.json
+        npm ci --prefer-offline --no-audit
+        license-checker --json --out ../node-licenses.json --excludePrivatePackages
     
     - name: Upload license reports
       uses: actions/upload-artifact@v3
+      if: always()
       with:
         name: license-reports
         path: |
